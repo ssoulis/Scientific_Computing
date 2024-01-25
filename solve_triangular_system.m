@@ -1,0 +1,12 @@
+function x = solve_triangular_system(A, B)
+    n = size(A, 1);
+    x = zeros(n, size(B, 2));
+    B_original = B; % Store the original B
+
+    for k = 1:log2(n)
+        D_inv = diag(1./diag(A));
+        A = D_inv * (A + tril(A, -1) + triu(A, 1));
+        B = D_inv * (A + tril(A, -1) + triu(A, 1)) * B_original;
+        x = x + D_inv * B;
+    end
+end
