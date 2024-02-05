@@ -113,7 +113,7 @@ LAPACK & Intel(R) oneAPI Math Kernel Library Version 2021.3 \\
 Σύντομη περιγραφή όσων έκανα και σχολιασμός των αποτελεσμάτων:\\
 
 Εξαγωγή συντελεστών: Οι συντελεστές \selectlanguage{english} alpha3, alpha2, alpha1 alpha0\selectlanguage{greek} προέκυψαν από την πράξη\selectlanguage{english} polyfit.\selectlanguage{greek}
-Προβλεπόμενοι χρόνοι εκτέλεσης: Η λειτουργία polyval χρησιμοποιήθηκε για τον υπολογισμό των προβλεπόμενων χρόνων εκτέλεσης για δύο σύνολα τιμών\selectlanguage{english} n:
+Προβλεπόμενοι χρόνοι εκτέλεσης: Η λειτουργία\selectlanguage{english} polyval \selectlanguage{greek}χρησιμοποιήθηκε για τον υπολογισμό των προβλεπόμενων χρόνων εκτέλεσης για δύο σύνολα τιμών\selectlanguage{english} n:
 [100:100:2000]:\selectlanguage{greek} Ένα εύρος που συνάδει με τα αρχικά δεδομένα.
 [150:100:1550]: Ένα διαφορετικό υποσύνολο τιμών\selectlanguage{english} n\selectlanguage{greek} για πρόσθετες προβλέψεις.
 Εμφάνιση των αποτελεσμάτων: Εμφανίστηκαν οι προβλεπόμενοι χρόνοι εκτέλεσης και για τα δύο σύνολα τιμών \selectlanguage{english}n.\selectlanguage{greek}\\
@@ -182,77 +182,127 @@ LAPACK & Intel(R) oneAPI Math Kernel Library Version 2021.3 \\
 % Insert your content here
 \selectlanguage{english}
 \begin{verbatim}
-function x = solve_triangular_system(A, B)
-    n = size(A, 1);
-    x = zeros(n, size(B, 2));
-    B_original = B; % Store the original B
+function experimentMatrixProperties(n)
+    % Initialize the diagonal components with random values
+    D = diag(randi([1, 5], n, 1)); % Main diagonal
+    L = diag(randi([1, 5], n-1, 1), -1); % Lower diagonal
+    U = diag(randi([1, 5], n-1, 1), 1); % Upper diagonal
+    A = D - L - U;
 
-    for k = 1:log2(n)
-        D_inv = diag(1./diag(A));
-        A = D_inv * (A + tril(A, -1) + triu(A, 1));
-        B = D_inv * (A + tril(A, -1) + triu(A, 1)) * B_original;
-        x = x + D_inv * B;
+    % Check if the matrix is positive definite
+    try
+        chol(A);
+        disp('Matrix is positive definite.');
+    catch
+        disp('Matrix is not positive definite.');
     end
+
+    % Initialize a vector b with random elements
+    b = randi([1, 10], n, 1);
+
+    % Calculate A1 and b1 for the system solution
+    A1 = D - L * inv(D) * U - U * inv(D) * L - L * inv(D) * L - U * inv(D) * U;
+    b1 = b + L * (inv(D) * b) + U * (inv(D) * b);
+
+    % Solve the system
+    x = A1 \ b1;
+
+    % Compute A2 and A3 based on A1
+    A2 = (diag(diag(A1)) + diag(diag(A1)) - A1) * inv(diag(diag(A1))) * A1;
+    A3 = (diag(diag(A2)) + diag(diag(A2)) - A2) * inv(diag(diag(A2))) * A2;
+
+    % Display results
+    disp('Solution x:');
+    disp(x);
+    disp('Matrix A:');
+    disp(A);
+    disp('Matrix A1:');
+    disp(A1);
+    disp('Matrix A2:');
+    disp(A2);
+    disp('Matrix A3:');
+    disp(A3);
+
+    % Calculate and display norms
+    norm_main_diag = norm(diag(D), 2);
+    norm_sub_diag = norm(diag(L, -1), 2);
+    norm_hyper_diag = norm(diag(U, 1), 2);
+    fprintf('Norm of main diagonal: %f\n', norm_main_diag);
+    fprintf('Norm of sub-diagonal: %f\n', norm_sub_diag);
+    fprintf('Norm of hyper-diagonal: %f\n', norm_hyper_diag);
+
+    % Simplified computational cost for Hadamard products
+    % Assuming hypothetical direct Hadamard product operations
+    cost_hadamard = n + 2 * (n - 1); % n for D.*b, (n-1) for L.*b and U.*b
+    fprintf('Total computational cost estimate for Hadamard products: %d operations\n', cost_hadamard);
 end
 
-% Example usage:
-D = diag([2, 3, 4]);
-L = tril(ones(3) - eye(3), -1);
-U = triu(ones(3) - eye(3), 1);
+%Call this function like this 
+experimentMatrixProperties(6);
 
-A = D - L - U;
-B = rand(3, 1);
-
-% Call the function from the other script
-x = solve_triangular_system(A, B);
-
-% Display the result
-disp(x);
 \end{verbatim}
 
 \subsection{}
 % Insert your content here
 \selectlanguage{greek}
-Για να μελετήσουμε τη μέθοδο και τις ιδιότητές της, ας αναλύσουμε τον αλγόριθμο και το αριθμητικό κόστος του ως συνάρτηση του\selectlanguage{english} n\selectlanguage{greek}. Ο αλγόριθμος περιλαμβάνει κυρίως πράξεις μεταξύ διανυσμάτων που αντιπροσωπεύουν τις διαγωνίους των πινάκων. Η βασική πράξη είναι ο πολλαπλασιασμός διανυσμάτων\selectlanguage{english} Hadamard. \selectlanguage{greek}Ας συμβολίσουμε το μέγεθος του συστήματος ως n και τον αριθμό των βημάτων του βρόχου ως \selectlanguage{english}log2(n).\\
-\selectlanguage{greek}
-Τα κύρια βήματα σε κάθε επανάληψη του βρόχου είναι τα εξής:
-Υπολογισμός του\selectlanguage{english} \texttt{D\_inv} \selectlanguage{greek} (διαγώνιο διάνυσμα του αντίστροφου της διαγωνίου του A).
-Εκτέλεση πολλαπλασιασμού\selectlanguage{english} Hadamard \selectlanguage{greek}των διανυσμάτων (πολλαπλασιασμός κατά στοιχείο).
-Ενημέρωση του πίνακα A και του διανύσματος B.
-Ας συμβολίσουμε το μέγεθος των διανυσμάτων που αντιπροσωπεύουν τις διαγωνίους ως \selectlanguage{english} m \selectlanguage{greek} (συνήθως ίσο με n για έναν τετραγωνικό πίνακα). Το αριθμητικό κόστος του πολλαπλασιασμού \selectlanguage{english}Hadamard \selectlanguage{greek}είναι\selectlanguage{english} O(m). \selectlanguage{greek}Σε κάθε επανάληψη του βρόχου, εκτελούμε τον πολλαπλασιασμό \selectlanguage{english}Hadamard\selectlanguage{greek} δύο φορές, μία για την ενημέρωση του A και μία για την ενημέρωση του B.\\
-Το συνολικό αριθμητικό κόστος του αλγορίθμου είναι τότε\selectlanguage{english} O(log2(n) * m),\selectlanguage{greek} υποθέτοντας ότι ο πολλαπλασιασμός \selectlanguage{english}Hadamard \selectlanguage{greek}κυριαρχεί στο υπολογιστικό κόστος. Η πολυπλοκότητα του αλγορίθμου κυριαρχείται από τον αριθμό των βημάτων του βρόχου, ο οποίος είναι λογαριθμικός ως προς το μέγεθος του συστήματος.
-Αξίζει να σημειωθεί ότι η επιλογή του αρχικού\selectlanguage{english} \texttt{D\_inv}\selectlanguage{greek}περιλαμβάνει τον υπολογισμό του αντίστροφου της διαγωνίου του A. Αυτή η πράξη έχει επίσης αριθμητικό κόστος \selectlanguage{english}O(m). \selectlanguage{greek}Επομένως, το συνολικό αριθμητικό κόστος του αλγορίθμου μπορεί να εκφραστεί ως \selectlanguage{english}O(log2(n) * m + m), \selectlanguage{greek}όπου ο πρώτος όρος οφείλεται στους πολλαπλασιασμούς \selectlanguage{english}Hadamard\selectlanguage{greek} και ο δεύτερος όρος στην αντιστροφή της διαγωνίου.
-Στην πράξη, το αριθμητικό κόστος εξαρτάται από τη σπανιότητα και τη δομή των εμπλεκόμενων πινάκων. Εάν οι πίνακες είναι αραιοί, το κόστος του πολλαπλασιασμού\selectlanguage{english} Hadamard \selectlanguage{greek}μπορεί να μειωθεί σημαντικά.\\
-Συνοπτικά, το αριθμητικό κόστος του αλγορίθμου είναι περίπου γραμμικό σε σχέση με το μέγεθος των διανυσμάτων που αντιπροσωπεύουν τις διαγωνίους και λογαριθμικό σε σχέση με το μέγεθος του συστήματος \selectlanguage{english}n.
+Για το συγκεκριμένο ερώτημα βασίστηκα στο σετ 13 διαφάνειες 13 κ.ο.
+πιο συγκεκριμένα, ας αναλύσουμε τον κώδικα για να δούμε πως δουλεύει.\\
+
+Αρχικοποίηση πινάκων:\\
+Δημιουργεί έναν τετραγωνικό πίνακα A μεγέθους \selectlanguage{english}n×n \selectlanguage{greek}ρυθμίζοντας τη διαγώνιο, την κάτω διαγώνιο (μία κάτω από την κύρια διαγώνιο) και την άνω διαγώνιο (μία πάνω από την κύρια διαγώνιο) με τυχαίους ακέραιους αριθμούς μεταξύ 1 και 5. Ο πίνακας A σχηματίζεται στη συνέχεια αφαιρώντας την κάτω και την άνω διαγώνιο από την κύρια διαγώνιο.\\
+
+Έλεγχος θετικής οριστικότητας:\\
+Προσπαθεί να εκτελέσει μια αποσύνθεση\selectlanguage{english} Cholesky\selectlanguage{greek} στο 
+A για να ελέγξει αν ο A είναι θετικά ορισμένος. Εάν η αποσύνθεση πετύχει, εκτυπώνει ότι ο πίνακας είναι θετικά ορισμένος- διαφορετικά, εκτυπώνει ότι δεν είναι.\\
+
+Επίλυση συστήματος: \\
+Η συνάρτηση αρχικοποιεί ένα διάνυσμα b με τυχαίους ακέραιους αριθμούς μεταξύ 1 και 10 και στη συνέχεια υπολογίζει έναν τροποποιημένο πίνακα συστήματος A1 και ένα τροποποιημένο διάνυσμα \selectlanguage{english}b1\selectlanguage{greek} της δεξιάς πλευράς. Αυτές οι τροποποιήσεις ενσωματώνουν αντίστροφες πράξεις στο \selectlanguage{english}D \selectlanguage{greek}και αλληλεπιδράσεις με τα\selectlanguage{english} L\selectlanguage{greek} και\selectlanguage{english} U.\selectlanguage{greek} Το σύστημα\selectlanguage{english} A1x=b1 \selectlanguage{greek}επιλύεται στη συνέχεια για το διάνυσμα\selectlanguage{english} x.\selectlanguage{greek}\\
+
+Υπολογισμός τροποποιημένων πινάκων A2 και A3:\\
+Υπολογίζει δύο περαιτέρω τροποποιημένους πίνακες, τους A2 και A3, με βάση τον A1. Αυτοί οι υπολογισμοί περιλαμβάνουν πράξεις με τα διαγώνια στοιχεία του A1 και 
+A2, αφαίρεση από αυτούς τους πίνακες και πολλαπλασιασμό με τους αντίστροφους τους.
+Εμφάνιση αποτελεσμάτων: Η συνάρτηση εξάγει το διάνυσμα της λύσης\selectlanguage{english} x,\selectlanguage{greek} τον αρχικό πίνακα 
+A, και τους τροποποιημένους πίνακες A1, A2 και A3.
+Υπολογισμός και εμφάνιση προτύπων: Υπολογίζει τα \selectlanguage{english} 2-norms \selectlanguage{greek}της κύριας διαγωνίου του \selectlanguage{english}
+D, \selectlanguage{greek}της υποδιαγωνίου του\selectlanguage{english} L\selectlanguage{greek} και της υπερδιαγωνίου του \selectlanguage{english}U\selectlanguage{greek} και εμφανίζει αυτές τις νόρμες.\\
+
+Εκτίμηση υπολογιστικού κόστους για υποθετικά προϊόντα \selectlanguage{english}Hadamard:\selectlanguage{greek} \\
+Παρέχει μια απλουστευμένη εκτίμηση του υπολογιστικού κόστους για την εκτέλεση προϊόντων \selectlanguage{english}Hadamard\selectlanguage{greek} (πολλαπλασιασμός κατά στοιχείο) μεταξύ του πίνακα \selectlanguage{english}
+D\selectlanguage{greek} και του διανύσματος\selectlanguage{english} b, \selectlanguage{greek}και ομοίως για τα \selectlanguage{english}L , U \selectlanguage{greek}με το\selectlanguage{english} b,\selectlanguage{greek} υποθέτοντας ότι είναι δυνατές οι άμεσες πράξεις.
 
 \subsection{}
 % Insert your content here
 \selectlanguage{greek}
-Για να πειραματιστούμε με διαγωνοκυριαρχούμενους πίνακες, μπορούμε να δημιουργήσουμε διαγωνοκυριαρχούμενους τριγωνικούς πίνακες και να παρατηρήσουμε τη συμπεριφορά των υπερ- και υποδιαγωνίων τους μέσω των επαναλήψεων του αλγορίθμου. Συγκεκριμένα, μπορούμε να εξετάσουμε τις νόρμες αυτών των διαγωνίων για να δούμε πώς εξελίσσονται κατά τη διάρκεια της διαδικασίας.
+
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{image8.png} 
+\includegraphics[width=0.8\textwidth]{image14.png} 
 \label{fig:image9}
 \end{figure}
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{image9.png} 
+\includegraphics[width=0.8\textwidth]{image15.png} 
 \label{fig:image10}
 \end{figure}
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{image10.png} 
+\includegraphics[width=0.8\textwidth]{image16.png} 
 \label{fig:image11}
 \end{figure}
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{image11.png} 
+\includegraphics[width=0.8\textwidth]{image17.png} 
 \label{fig:image12}
 \end{figure}
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.8\textwidth]{image12.png} 
+\includegraphics[width=0.8\textwidth]{image18.png} 
 \label{fig:image13}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.8\textwidth]{image19.png} 
+\label{fig:image20}
 \end{figure}
 \FloatBarrier % Prevents floats from moving past this point
 
@@ -298,7 +348,7 @@ disp(x);
 Ρύθμιση παραμέτρων: Όρισα παραμέτρους όπως ο αριθμός των εσωτερικών κόμβων\selectlanguage{english} (n), \selectlanguage{greek}ο αριθμός των οριακών συνθηκών\selectlanguage{english} (m)\selectlanguage{greek} και η απόσταση μεταξύ διαδοχικών κόμβων\selectlanguage{english} (h).\\
 \selectlanguage{greek}
 Ορισμός του πλέγματος: Δημιούργησα ένα πλέγμα \selectlanguage{english}(X and Y) \selectlanguage{greek}χρησιμοποιώντας το \selectlanguage{english}meshgrid \selectlanguage{greek}για να αναπαραστήσω το χωρικό πεδίο.
-Κατασκεύασα τον πίνακα\selectlanguage{english} Poisson \selectlanguage{greek}και το διάνυσμα της δεξιάς πλευράς: Ύστερα χρησιμοποιήσα μια συνάρτηση \selectlanguage{english} texttt{constructPoissonMatrix\_1070263} \selectlanguage{greek} για να κατασκευάσω τον πίνακα \selectlanguage{english}Poisson A\selectlanguage{greek} και να δημιουργήσω το διάνυσμα\selectlanguage{english} b\selectlanguage{greek} της δεξιάς πλευράς.\\
+Κατασκεύασα τον πίνακα\selectlanguage{english} Poisson \selectlanguage{greek}και το διάνυσμα της δεξιάς πλευράς: Ύστερα χρησιμοποιήσα μια συνάρτηση \selectlanguage{english} \texttt{constructPoissonMatrix\_1070263} \selectlanguage{greek} για να κατασκευάσω τον πίνακα \selectlanguage{english}Poisson A\selectlanguage{greek} και να δημιουργήσω το διάνυσμα\selectlanguage{english} b\selectlanguage{greek} της δεξιάς πλευράς.\\
 
 Ρύθμιση δοκιμών προαπαιτούμενων συνθηκών\selectlanguage{english} (Preconditioning Tests):\selectlanguage{greek}
 Δοκίμασα τον επαναληπτικό επιλύτη (μέθοδος συζυγών βαθμίδων με προϋποθέσεις) χωρίς προϋποθέσεις \selectlanguage{english}("none").\selectlanguage{greek} Επίσης έκανα δοκιμή με ελλιπή προρύθμιση \selectlanguage{english} Cholesky ('ichol')\selectlanguage{greek} και δοκιμή με προσαρμοσμένη προεπεξεργασία \selectlanguage{english}('custom').\\
@@ -306,10 +356,10 @@ disp(x);
 Απεικόνιση:
 Σχεδίασα το σχετικό υπόλειμμα για κάθε επανάληψη και για τις τρεις στρατηγικές προετοιμασίας. Έκαν απεικόνιση του σχετικού σφάλματος για κάθε επανάληψη και για τις τρεις στρατηγικές προετοιμασίας.Τέλος, γίνεται η εμφάνιση των παραγόμενων γραφικών παραστάσεων.
 
-\subsection{\selectlanguage{english}pcg\_1070263}
+\subsection{\selectlanguage{english}\texttt{pcg\_1070263}}
 % Insert your content here
 \selectlanguage{greek}
-Η συνάρτηση του MATLAB είναι μια τροποποιημένη έκδοση της μεθόδου Preconditioned Conjugate Gradients\selectlanguage{english} (PCG),\selectlanguage{greek} με την ονομασία\selectlanguage{english} texttt{pcg\_1070263}.\selectlanguage{greek} Έχει σχεδιαστεί για την επίλυση ενός συστήματος γραμμικών εξισώσεων\selectlanguage{english} $Ax=b$ \selectlanguage{greek}με τη δυνατότητα χρήσης ενός προρυθμιστή.\\
+Η συνάρτηση του MATLAB είναι μια τροποποιημένη έκδοση της μεθόδου\selectlanguage{english} Preconditioned Conjugate Gradients (PCG),\selectlanguage{greek} με την ονομασία\selectlanguage{english} \texttt{pcg\_1070263}.\selectlanguage{greek} Έχει σχεδιαστεί για την επίλυση ενός συστήματος γραμμικών εξισώσεων\selectlanguage{english} $Ax=b$ \selectlanguage{greek}με τη δυνατότητα χρήσης ενός προρυθμιστή.\\
 
 Παράμετροι εισόδου:\\
 A: Ο πίνακας συντελεστών ή μια λαβή συνάρτησης που αναπαριστά έναν γραμμικό τελεστή.\\
@@ -348,7 +398,7 @@ varargin:\selectlanguage{greek} Πρόσθετα ορίσματα που μετ�
 Υπολογίζει την κατεύθυνση αναζήτησης \selectlanguage{english}(p) \selectlanguage{greek}και το γινόμενο μήτρας-διανύσματος\selectlanguage{english} (q) \selectlanguage{greek}σε κάθε επανάληψη.\\
 
 Έλεγχοι σύγκλισης και στασιμότητας:\\
-Παρακολουθεί τη σύγκλιση συγκρίνοντας τη νόρμα του υπολείμματος \selectlanguage{english}texttt{(normr\_act)} \selectlanguage{greek}με την καθορισμένη ανοχή \selectlanguage{english}(tol).\selectlanguage{greek}
+Παρακολουθεί τη σύγκλιση συγκρίνοντας τη νόρμα του υπολείμματος \selectlanguage{english}\texttt{(normr\_act)} \selectlanguage{greek}με την καθορισμένη ανοχή \selectlanguage{english}(tol).\selectlanguage{greek}
 Ελέγχει τη στασιμότητα εξετάζοντας το λόγο της νόρμας της κατεύθυνσης αναζήτησης προς τη νόρμα της λύσης.\\
 
 Αποθήκευση αποτελεσμάτων:\\
@@ -376,7 +426,7 @@ varargin:\selectlanguage{greek} Πρόσθετα ορίσματα που μετ�
 Πιο αναλυτικά:\\
 Παράμετροι εισόδου:\\
 \selectlanguage{english}X:\selectlanguage{greek} Συντεταγμένες πλέγματος.\\
-texttt{~} (αχρησιμοποίητο): Παράμετρος που αγνοείται.\\
+\texttt{~} (αχρησιμοποίητο): Παράμετρος που αγνοείται.\\
 \selectlanguage{english}h:\selectlanguage{greek} Απόσταση μεταξύ διαδοχικών κόμβων.\\
 
 Κατασκευή πινάκων:\\
@@ -424,7 +474,7 @@ Yπολογίζει την ακριβή λύση για την εξίσωση Po
 \subsection{\selectlanguage{english}SuiteSparse.m}
 % Insert your content here
 \selectlanguage{greek}
-Αυτός ο κώδικας επιλύει ένα γραμμικό σύστημα που ορίζεται από Τo μητρώο υπ’ αριθμ. 1 του \selectlanguage{english}SuiteSparse,\selectlanguage{greek} δηλ. το texttt{1138\_bus} και το διάνυσμα της δεξιάς πλευράς\selectlanguage{english} b \selectlanguage{greek}χρησιμοποιώντας τη μέθοδο\selectlanguage{english} Preconditioned Conjugate Gradients (PCG) \selectlanguage{greek}με την τροποποιημένη συνάρτηση\selectlanguage{english} texttt{(pcg\_1070263)}. \\
+Αυτός ο κώδικας επιλύει ένα γραμμικό σύστημα που ορίζεται από Τo μητρώο υπ’ αριθμ. 1 του \selectlanguage{english}SuiteSparse,\selectlanguage{greek} δηλ. το \texttt{1138\_bus} και το διάνυσμα της δεξιάς πλευράς\selectlanguage{english} b \selectlanguage{greek}χρησιμοποιώντας τη μέθοδο\selectlanguage{english} Preconditioned Conjugate Gradients (PCG) \selectlanguage{greek}με την τροποποιημένη συνάρτηση\selectlanguage{english} \texttt{(pcg\_1070263)}. \\
 \selectlanguage{greek}
 Ορισμός μητώου:\\
 A = Πρόβλημα: Αρχικοποιεί τον πίνακα συντελεστών A με βάση το μητρώο\selectlanguage{english} Problem. \selectlanguage{greek}\\
@@ -433,7 +483,7 @@ A = Πρόβλημα: Αρχικοποιεί τον πίνακα συντελε�
 \selectlanguage{english}b = rand(size(A, 1), 1);: \selectlanguage{greek}Δημιουργεί ένα τυχαίο διάνυσμα δεξιάς πλευράς b με τον ίδιο αριθμό γραμμών με τον πίνακα A.\\
 
 Προκαθοριστής και όριο επανάληψης:\\
-\selectlanguage{english}preconditioner = 'ichol';: \selectlanguage{greek}Καθορίζει τον τύπο του \selectlanguage{english}preconditioner\selectlanguage{greek} που θα χρησιμοποιηθεί στη μέθοδο PCG. Σε αυτή την περίπτωση, ορίζεται σε ατελή παραγοντοποίηση \selectlanguage{english}Cholesky ('ichol').\selectlanguage{greek} Μπορείτε να το αλλάξετε σε άλλες επιλογές όπως \selectlanguage{english}'none', 'custom',\selectlanguage{greek} κ.λπ. \\
+\selectlanguage{english}preconditioner = 'ichol';: \selectlanguage{greek}Καθορίζει τον τύπο του \selectlanguage{english}preconditioner\selectlanguage{greek} που θα χρησιμοποιηθεί στη μέθοδο\selectlanguage{english} PCG.\selectlanguage{greek} Σε αυτή την περίπτωση, ορίζεται σε ατελή παραγοντοποίηση \selectlanguage{english}Cholesky ('ichol').\selectlanguage{greek} Μπορείτε να το αλλάξετε σε άλλες επιλογές όπως \selectlanguage{english}'none', 'custom',\selectlanguage{greek} κ.λπ. \\
 \selectlanguage{english}maxiter = 4 * size(A, 1);: \selectlanguage{greek}Ορίζει ένα ανώτερο όριο στον αριθμό των επαναλήψεων για τη μέθοδο \selectlanguage{english}PCG.\\
 
 PCG Solver:\\
